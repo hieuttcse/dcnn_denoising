@@ -7,14 +7,68 @@ import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import math
 import scipy.misc
+import h5py
 
 def main():
+    #process_images()
+    inputDir = "../../output/"
+    dataset = "BSD68_poisson"
+    patchSize = 32
+    overlapSize = 8
+    #prepare_patches(inputDir,dataset,patchSize,overlapSize,"train")
+    gtPatches, noisyPatches = get_training_patches(inputDir,dataset,patchSize,overlapSize)
+
+def get_training_patches(inputDir,dataset,patchSize,overlapSize):
+    h5Filename = "%s_train_%03d_%03d.h5" % (dataset, patchSize, overlapSize)
+    h5FilePath = os.path.join(inputDir, h5Filename)
+    f = h5py.File(h5FilePath,'r')
+    gtPatches = np.asarray(f['gt'],dtype=np.float32)
+    noisyPatches = np.asarray(f['noisy'],dtype=np.float32)
+    return gtPatches,noisyPatches
+
+def prepare_patches(inputDir,dataset,patchSize,overlapSize,type):
+    train_noisy,train_gt = load_data_pair(inputDir,dataset,type)
+    noisyPatches, gtPatches = prepare_patches(train_noisy,train_gt,patchSize,overlapSize)
+    #print(len(noisyPatches))
+    h5Filename = "%s_train_%03d_%03d.h5"%(dataset,patchSize,overlapSize)
+    h5FilePath = os.path.join(inputDir,h5Filename)
+    h = h5py.File(h5FilePath,'w')
+    h.create_dataset('noisy',data=noisyPatches)
+    h.create_dataset('gt',data=gtPatches)
+    h.close()
+def extract_patches(noisy,gt,patchSize, overlap):
+    ny = gt[0].shape[0]
+    nx = gt[0].shape[1]
+    noPatchX = int(math.floor((nx - overlap)*1.0/(patchSize-overlap)))
+    noPatchY = int(math.floor((ny - overlap)*1.0/(patchSize-overlap)))
+    startX = np.linspace(0,(noPatchX-1)*(patchSize-overlap),noPatchX+1)
+    endX = startX + patchSize
+
+    startY = np.linspace(0,(noPatchY-1)*(patchSize-overlap),noPatchY)
+    endY = startY + patchSize
+
+    [indexXStart,indexYStart] = np.meshgrid(startX,startY)
+    [indexXEnd,indexYEnd] = np.meshgrid(endX,endY)
+    noisyPatches = []
+    gtPatches = []
+    for i in range(0,indexXEnd.shape[1]):
+        for j in range(0,indexXEnd.shape[0]):
+            patches = [ img[indexYStart[j,i]:indexYEnd[j,i],indexXStart[j,i]:indexXEnd[j,i]] for img in noisy]
+            noisyPatches.extend(patches)
+            patches = [ img[indexYStart[j,i]:indexYEnd[j,i],indexXStart[j,i]:indexXEnd[j,i]] for img in gt]
+            gtPatches.extend(patches)
+    return noisyPatches,gtPatches
+
+
+def process_images():
     print(" Preprocessing the input images")
     # configuration
     img_dir = "../../images/BSD68/"
     out_dir = "../../output/"
     # set noisy type to : gauss , s&p, poisson, speckle
     noisy_type = "poisson"
+    dataset = "%s_%s"%("BSD68",noisy_type)
+    data_dir = os.path.join(out_dir,dataset)
 
 
     images = read_images(img_dir)
@@ -39,9 +93,33 @@ def main():
     tests_noise = noisy_images[noTrain:]
     tests_gt  = images[noTrain:]
     print("... Writing training data")
-    write_pair_images(os.path.join(out_dir,"train"),trains_gt,trains_noise)
+    write_pair_images(os.path.join(data_dir,"train"),trains_gt,trains_noise)
     print("... Writing testing data")
-    write_pair_images(os.path.join(out_dir,"test"),tests_gt,tests_noise)
+    write_pair_images(os.path.join(data_dir,"test"),tests_gt,tests_noise)
+
+
+
+def load_data_pair(inputDir,dataset,type):
+    dataDir = os.path.join(inputDir,dataset)
+    # read training data
+    trainDir = os.path.join(dataDir,type)
+    train_noisy = []
+    train_gt = []
+    noisyDir = os.path.join(trainDir,"in")
+    gtDir = os.path.join(trainDir,"gt")
+    for index in range(1,1000):
+        noisyFile = os.path.join(noisyDir,"img_%d.png"%index)
+        gtFile = os.path.join(gtDir,"img_%d.png"%index)
+        if os.path.exists(gtFile) and os.path.exists(noisyFile):
+            img = mpimg.imread(noisyFile)
+            img = np.asarray(img,dtype=np.float32)
+            train_noisy.append(img)
+            img = mpimg.imread(gtFile)
+            img = np.asarray(img,dtype=np.float32)
+            train_gt.append(img)
+
+    return train_noisy,train_gt
+
 
 def mkdir_p(path):
     try:
