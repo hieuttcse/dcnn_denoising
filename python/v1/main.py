@@ -27,7 +27,7 @@ def main(_):
     FLAGS = flags.FLAGS
 
     checkFolder()
-    with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         if FLAGS.isTrain:
             print(" ... TRAIN")
             DCNN = SDCNN(sess,FLAGS)

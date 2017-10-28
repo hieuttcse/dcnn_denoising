@@ -10,12 +10,12 @@ import scipy.misc
 import h5py
 
 def main():
-    #process_images()
+    process_images()
     inputDir = "../../output/"
     dataset = "BSD68_poisson"
     patchSize = 32
     overlapSize = 8
-    #prepare_patches(inputDir,dataset,patchSize,overlapSize,"train")
+    prepare_patches(inputDir,dataset,patchSize,overlapSize,"train")
     gtPatches, noisyPatches = get_training_patches(inputDir,dataset,patchSize,overlapSize)
 
 def get_training_patches(inputDir,dataset,patchSize,overlapSize):
@@ -28,7 +28,7 @@ def get_training_patches(inputDir,dataset,patchSize,overlapSize):
 
 def prepare_patches(inputDir,dataset,patchSize,overlapSize,type):
     train_noisy,train_gt = load_data_pair(inputDir,dataset,type)
-    noisyPatches, gtPatches = prepare_patches(train_noisy,train_gt,patchSize,overlapSize)
+    noisyPatches, gtPatches = extract_patches(train_noisy,train_gt,patchSize,overlapSize)
     #print(len(noisyPatches))
     h5Filename = "%s_train_%03d_%03d.h5"%(dataset,patchSize,overlapSize)
     h5FilePath = os.path.join(inputDir,h5Filename)
@@ -41,10 +41,10 @@ def extract_patches(noisy,gt,patchSize, overlap):
     nx = gt[0].shape[1]
     noPatchX = int(math.floor((nx - overlap)*1.0/(patchSize-overlap)))
     noPatchY = int(math.floor((ny - overlap)*1.0/(patchSize-overlap)))
-    startX = np.linspace(0,(noPatchX-1)*(patchSize-overlap),noPatchX+1)
+    startX = np.asarray(np.linspace(0,(noPatchX-1)*(patchSize-overlap),noPatchX+1),dtype=np.int)
     endX = startX + patchSize
 
-    startY = np.linspace(0,(noPatchY-1)*(patchSize-overlap),noPatchY)
+    startY = np.asarray(np.linspace(0,(noPatchY-1)*(patchSize-overlap),noPatchY),dtype=np.int)
     endY = startY + patchSize
 
     [indexXStart,indexYStart] = np.meshgrid(startX,startY)
