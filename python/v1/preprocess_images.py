@@ -10,13 +10,15 @@ import scipy.misc
 import h5py
 
 def main():
-    process_images()
+    dataname = "BSD68"
+    noise_type = "poisson"
+    process_images(dataname,noise_type)
     inputDir = "../../output/"
-    dataset = "BSD68_poisson"
+    dataset = "%s_%s"%(dataname,noise_type)
     patchSize = 32
     overlapSize = 8
     prepare_patches(inputDir,dataset,patchSize,overlapSize,"train")
-    gtPatches, noisyPatches = get_training_patches(inputDir,dataset,patchSize,overlapSize)
+    #noisyPatches,gtPatches = get_training_patches(inputDir,dataset,patchSize,overlapSize)
 
 def get_training_patches(inputDir,dataset,patchSize,overlapSize):
     h5Filename = "%s_train_%03d_%03d.h5" % (dataset, patchSize, overlapSize)
@@ -24,7 +26,7 @@ def get_training_patches(inputDir,dataset,patchSize,overlapSize):
     f = h5py.File(h5FilePath,'r')
     gtPatches = np.asarray(f['gt'],dtype=np.float32)
     noisyPatches = np.asarray(f['noisy'],dtype=np.float32)
-    return gtPatches,noisyPatches
+    return noisyPatches,gtPatches
 
 def prepare_patches(inputDir,dataset,patchSize,overlapSize,type):
     train_noisy,train_gt = load_data_pair(inputDir,dataset,type)
@@ -60,14 +62,14 @@ def extract_patches(noisy,gt,patchSize, overlap):
     return noisyPatches,gtPatches
 
 
-def process_images():
+def process_images(dataname,noise_type):
     print(" Preprocessing the input images")
     # configuration
-    img_dir = "../../images/BSD68/"
+    img_dir = "../../images/%s/"%dataname
     out_dir = "../../output/"
     # set noisy type to : gauss , s&p, poisson, speckle
-    noisy_type = "poisson"
-    dataset = "%s_%s"%("BSD68",noisy_type)
+    noisy_type = "%s"%noise_type
+    dataset = "%s_%s"%(dataname,noisy_type)
     data_dir = os.path.join(out_dir,dataset)
 
 
@@ -120,6 +122,12 @@ def load_data_pair(inputDir,dataset,type):
 
     return train_noisy,train_gt
 
+def get_testing_images(inputDir,dataset):
+    noisyList, gtList =  load_data_pair(inputDir,dataset,"test")
+
+    noisyImages = np.asarray(noisyList,dtype=np.float32)
+    gtImages = np.asarray(gtList,dtype=np.float32)
+    return noisyImages,gtImages
 
 def mkdir_p(path):
     try:
@@ -150,6 +158,15 @@ def write_pair_images(path,images_gt, images_in):
        scipy.misc.imsave(fpath,img)
        # to reserve the intensity level
        # scipy.misc.toimage(img,cmin=0.0, cmax=...).save(fpath)
+def write_outputs(path,dataset,images):
+    outDir = os.path.join(path,dataset)
+    outDir = os.path.join(outDir,"out")
+    mkdir_p(outDir)
+    for i in range(1,len(images)+1):
+        fname = "img_%d.png"%i
+        fpath = os.path.join(outDir,fname)
+        scipy.misc.imsave(fpath,images[i-1])
+
 def generate_noisy_images(images,type):
     noisy = []
     for image in images:
