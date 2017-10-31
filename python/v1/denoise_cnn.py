@@ -155,6 +155,8 @@ class SDCNN(object): # Simple Denosing CNN
             ranIndex = np.random.permutation(np.asarray(range(0,noTrain)))
             noisy_train_patches = noisypTrain[ranIndex,:,:]
             gt_train_patches = gtpTrain[ranIndex,:,:]
+            count = 0
+            MSE_sum = 0
             for bIdx in range(0,noTraningBatches):
                 idxStart = bIdx * self.batchSize
                 idxEnd = idxStart + self.batchSize
@@ -167,13 +169,16 @@ class SDCNN(object): # Simple Denosing CNN
 
                 [v,val_MSE] = self.sess.run([optimalDenoising,self.MSE],
                                           feed_dict={self.input: in1, self.gt: gt1})
-                self.count +=1
-
-                print('Epoch train[%2d] total MSE: %.4f \n'%(epoch,val_MSE))
+                count +=1
+                MSE_sum += val_MSE
+            train_mse = MSE_sum/count*1.0
+            print('Epoch train[%2d] total MSE: %.4f \n'%(epoch,train_mse))
             # Evaluating code
             ranIndex = np.random.permutation(np.asarray(range(0,noEval)))
             noisy_eval_patches = noisypEval[ranIndex,:,:]
             gt_eval_patches = gtpEval[ranIndex,:,:]
+            count = 0
+            MSE_sum_val = 0
             for bIdx in range(0,noEvalBatches):
                 idxStart = bIdx * self.batchSize
                 idxEnd = idxStart + self.batchSize
@@ -185,12 +190,15 @@ class SDCNN(object): # Simple Denosing CNN
 
                 [val_eval_MSE] = self.sess.run([self.MSE],
                                           feed_dict={self.input:in1,self.gt:gt1})
-                print('Epoch eval[%2d] total MSE: %.4f \n'%(epoch,val_eval_MSE))
+                count += 1
+                MSE_sum_val += val_eval_MSE
+            eval_mse = 1.0* MSE_sum_val / count 
+            print(' ... Epoch eval[%2d] total MSE: %.4f \n'%(epoch,eval_mse))
 
             if np.mod(epoch,100) == 0:
-                logTrainFile.write('epoch %06d MSE %.6f \n'%(epoch,val_MSE))
+                logTrainFile.write('epoch %06d MSE %.6f \n'%(epoch,train_mse))
                 logTrainFile.flush()
-                logEvalFile.write('epoch %06d MSE %.6f \n'%(epoch,val_eval_MSE))
+                logEvalFile.write('epoch %06d MSE %.6f \n'%(epoch,eval_mse))
                 self.save_net(self.checkpointDir,self.dataset,0)
 
             logTrainFile.close()
